@@ -6,15 +6,16 @@ This is a web application that helps Filipino investors kickstart their investme
 
 The app should prioritize clarity, trust, simplicity, and responsible financial education. It must not present AI responses as licensed financial advice.
 
-The app should contain Facebook and Google authentication using Clerk or Supabase. The landing page should be a single scroll page that encourages Filipinos to invest. Use factual data if necessary. There should be a chat page for logged-in users. The chatbot should interview the user and recommend the best investment advice based on the user's profile. 
+The app uses Supabase Auth (email/password + Google OAuth). there is no Clerk and no Facebook login. The landing page is a single scroll page that encourages Filipinos to invest. There is a chat page for logged-in users. The chatbot interviews the user and provides educational investment guidance based on their profile.
 
 ## Stack
 
-- Frontend: Next.js 14 + Tailwind CSS
-- AI / LLM: Vercel AI SDK + Claude or OpenAI
-- Database: Supabase
-- Auth: Clerk or Supabase Auth
-- Deploy: Vercel + GitHub Actions
+- Frontend: Vite + React 19 + TypeScript + Tailwind CSS + React Router v7
+- AI / LLM: Openrouter Free
+- Database: Supabase (Postgres + Row Level Security)
+- Auth: Supabase Auth only <!-- Google Authentication is in the UI but doesn't work due to the lack of a Google API key. -->
+- Testing: Vitest + @testing-library/react + jsdom
+- CI: GitHub Actions runs lint, typecheck, test, and build on every push/PR to `main`.
 
 ## Commands
 
@@ -23,6 +24,7 @@ npm run lint
 npm run typecheck
 npm run test
 npm run build
+npm run preview
 
 ## Core Principles
 
@@ -37,8 +39,7 @@ npm run build
 ## Coding Conventions
 
 Use TypeScript.
-Prefer server components by default.
-Use client components only when interactivity is required.
+Use functional components with hooks.
 Keep components small and focused.
 Use Tailwind CSS for styling.
 Keep business logic out of UI components.
@@ -62,8 +63,7 @@ Create unit tests.
 
 ## AI Guidelines
 
-Use Vercel AI SDK for model calls and streaming.
-Support Claude or OpenAI through a small provider abstraction.
+All AI calls happen server-side only.
 Keep prompts short, explicit, and versionable.
 Never hardcode API keys.
 Keep AI calls server-side.
@@ -73,7 +73,7 @@ Encourage users to research and consult licensed professionals for personal fina
 
 ## Database Guidelines
 
-Suggested tables may include:
+Tables:
 
 users
 profiles
@@ -85,23 +85,17 @@ learning_progress
 
 Rules:
 
-Keep database access in lib/supabase/.
-Use typed database helpers.
-Apply row-level security where appropriate.
+Apply row-level security where appropriate
 Never expose service role keys to the browser.
 Use migrations for schema changes.
 
 ## Auth Guidelines
 
-Protect authenticated routes with middleware.ts.
-Keep auth helpers in lib/auth/.
-Do not mix auth providers unless explicitly required.
 Store only necessary user profile data.
-Keep authorization checks server-side.
+Keep authorization checks server-side
 
 ## Security Guidelines
 
-Security Guidelines
 Never commit .env files.
 Keep .env.example updated.
 Validate user input.
@@ -139,10 +133,16 @@ Use accessible contrast and semantic HTML.
 Prefer simple dashboards, cards, tables, and guided flows.
 Avoid cluttered financial jargon.
 
+## Testing
+
+Test files live in `src/tests/`
+Mock external dependencies.
+
 ## GitHub Actions
 
-The CI should run:
+The CI runs on every push and PR to `main`:
 
+npm ci
 npm run lint
 npm run typecheck
 npm run test
@@ -150,17 +150,11 @@ npm run build
 
 ## Environment Variables
 
-NEXT_PUBLIC_APP_URL=
-
-OPENAI_API_KEY=
-ANTHROPIC_API_KEY=
-
-NEXT_PUBLIC_SUPABASE_URL=
-NEXT_PUBLIC_SUPABASE_ANON_KEY=
+VITE_SUPABASE_URL=
+VITE_SUPABASE_ANON_KEY=
+SUPABASE_URL=
 SUPABASE_SERVICE_ROLE_KEY=
-
-NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=
-CLERK_SECRET_KEY=
+OPENROUTER_API_KEY=
 
 ## Before finishing a task
 
@@ -174,16 +168,31 @@ npm run build
 ## Directory Guide
 
 ```txt
-app/                  Next.js App Router pages, layouts, API routes
-components/           Reusable UI and feature components
-components/ui/        Generic UI primitives
-components/chat/      AI chat and assistant UI
-lib/                  Shared utilities and service clients
-lib/ai/               Vercel AI SDK setup, prompts, model config
-lib/supabase/         Supabase clients, queries, database helpers
-lib/auth/             Clerk or Supabase Auth helpers
-hooks/                Reusable React hooks
-types/                Shared TypeScript types
-supabase/             Migrations, schema, seed files
-public/               Static assets
-.github/workflows/   CI and deployment workflows
+src/
+  App.tsx                    Route definitions
+  main.tsx                   Entry point (BrowserRouter, AuthProvider)
+  index.css                  Tailwind entry + shared component classes
+  vite-env.d.ts               Vite env var types
+  components/
+    Logo.tsx
+    ProtectedRoute.tsx        Auth-gated route wrapper
+    landing/                  Landing page sections (Navbar, Hero, Mission, WhyInvest, Learn, HowItWorks, FAQ, CTA, Footer)
+    chat/
+      ChatPage.tsx             Chat UI + conversation sidebar (protected route)
+    ui/
+      GoogleButton.tsx
+      LoadingSpinner.tsx
+  lib/
+    auth/AuthContext.tsx       Supabase Auth context/provider
+    chat/chatService.ts        Conversation/message CRUD + calls the chat edge function
+    supabase/client.ts         Supabase client + Database types
+  pages/
+    Landing.tsx
+    SignIn.tsx
+    SignUp.tsx
+  tests/                      Vitest + Testing Library unit tests
+supabase/
+  functions/chat/index.ts     Deno Edge Function: auth check, profile lookup, calls OpenRouter, persists messages
+  migrations/                 SQL schema + RLS policies
+.github/workflows/ci.yml      lint, typecheck, test, build
+```

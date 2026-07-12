@@ -18,5 +18,5 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm run typecheck
-      - run: npm run test
+      - run: npm run test -- --reporter=verbose
       - run: npm run build
