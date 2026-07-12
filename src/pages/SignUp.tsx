@@ -5,7 +5,7 @@ import Logo from '../components/Logo'
 import { LoadingSpinner } from '../components/ui/LoadingSpinner'
 
 export default function SignUp() {
-  const { signUp, signInWithGoogle } = useAuth()
+  const { signUp } = useAuth()
   const navigate = useNavigate()
   const [fullName, setFullName] = useState('')
   const [email, setEmail] = useState('')
