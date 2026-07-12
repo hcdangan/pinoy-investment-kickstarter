@@ -3,7 +3,6 @@ import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../lib/auth/AuthContext'
 import Logo from '../components/Logo'
 import { LoadingSpinner } from '../components/ui/LoadingSpinner'
-import GoogleButton from '../components/ui/GoogleButton'
 
 export default function SignIn() {
   const { signIn, signInWithGoogle } = useAuth()
