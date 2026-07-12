@@ -75,17 +75,17 @@ export default function SignIn() {
                 {loading ? <LoadingSpinner size="sm" /> : 'Sign in'}
               </button>
             </form>
-            {/* Google authentication is not working because I don't have an API key.
-            <div className="mt-6 flex items-center gap-3">
+            
+            <div className="mt-6 flex items-center gap-3" style="display: none;">
               <div className="h-px flex-1 bg-slate-200" />
               <span className="text-xs font-medium text-slate-400">OR</span>
               <div className="h-px flex-1 bg-slate-200" />
             </div>
 
-            <div className="mt-4">
+            <div className="mt-4" style="display: none;">
               <GoogleButton onClick={signInWithGoogle} label="Sign in with Google" />
             </div>
-            */}
+            
             <p className="mt-6 text-center text-sm text-slate-500">
               Don't have an account?{' '}
               <Link to="/signup" className="font-semibold text-primary-600 hover:text-primary-700">
