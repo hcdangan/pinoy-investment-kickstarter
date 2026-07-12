@@ -153,122 +153,14 @@ Deno.serve(async (req: Request) => {
   }
 });
 
-const OPENAI_MODEL = "gpt-5.5";
-const GEMINI_MODEL = "gemini-flash-latest";
 const OPENROUTER_MODEL = "openrouter/free";
 
-// Three-tier fallback chain: GPT-5.5 -> Gemini -> OpenRouter's free-model
-// auto-router. Each tier is skipped if unconfigured, and tried in order
-// until one returns a response, so a single provider outage (or no key set
-// for it) doesn't take the chat down. OpenRouter's free tier is rate-limited
-// and best-effort, so it's kept as the last resort rather than a primary.
 async function callAI(messages: Array<{ role: string; content: string }>): Promise<string | null> {
-  const openaiKey = Deno.env.get("OPENAI_API_KEY");
-  const geminiKey = Deno.env.get("GEMINI_API_KEY");
-  const openrouterKey = Deno.env.get("OPENROUTER_API_KEY");
-
-  if (!openaiKey && !geminiKey && !openrouterKey) {
-    throw new Error(
-      "AI agent is not configured: set OPENAI_API_KEY, GEMINI_API_KEY, and/or OPENROUTER_API_KEY as Supabase Edge Function secrets.",
-    );
+  const apiKey = Deno.env.get("OPENROUTER_API_KEY");
+  if (!apiKey) {
+    throw new Error("AI agent is not configured: set OPENROUTER_API_KEY as a Supabase Edge Function secret.");
   }
-
-  if (openaiKey) {
-    const result = await callGPT(messages, openaiKey);
-    if (result) return result;
-    console.error("GPT-5.5 request failed, trying next provider.");
-  }
-
-  if (geminiKey) {
-    const result = await callGemini(messages, geminiKey);
-    if (result) return result;
-    console.error("Gemini request failed, trying next provider.");
-  }
-
-  if (openrouterKey) {
-    return callOpenRouter(messages, openrouterKey);
-  }
-
-  return null;
-}
-
-async function callGPT(
-  messages: Array<{ role: string; content: string }>,
-  apiKey: string,
-): Promise<string | null> {
-  try {
-    const res = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: OPENAI_MODEL,
-        messages,
-        // GPT-5.5 is a reasoning model: it uses max_completion_tokens (covers
-        // both hidden reasoning + visible output) instead of max_tokens, and
-        // doesn't accept temperature.
-        max_completion_tokens: 1500,
-        reasoning_effort: Deno.env.get("OPENAI_REASONING_EFFORT") ?? "low",
-      }),
-    });
-
-    if (!res.ok) {
-      console.error("OpenAI API error:", res.status, await res.text());
-      return null;
-    }
-
-    const data = await res.json();
-    return data.choices?.[0]?.message?.content ?? null;
-  } catch (err) {
-    console.error("OpenAI request failed:", err);
-    return null;
-  }
-}
-
-async function callGemini(
-  messages: Array<{ role: string; content: string }>,
-  apiKey: string,
-): Promise<string | null> {
-  try {
-    // Gemini takes the system prompt as a separate field, and uses "model"
-    // instead of "assistant" for the assistant's turns.
-    const systemMessage = messages.find((m) => m.role === "system");
-    const contents = messages
-      .filter((m) => m.role !== "system")
-      .map((m) => ({
-        role: m.role === "assistant" ? "model" : "user",
-        parts: [{ text: m.content }],
-      }));
-
-    const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-goog-api-key": apiKey,
-        },
-        body: JSON.stringify({
-          contents,
-          systemInstruction: systemMessage ? { parts: [{ text: systemMessage.content }] } : undefined,
-          generationConfig: { maxOutputTokens: 1500 },
-        }),
-      },
-    );
-
-    if (!res.ok) {
-      console.error("Gemini API error:", res.status, await res.text());
-      return null;
-    }
-
-    const data = await res.json();
-    return data.candidates?.[0]?.content?.parts?.[0]?.text ?? null;
-  } catch (err) {
-    console.error("Gemini request failed:", err);
-    return null;
-  }
+  return callOpenRouter(messages, apiKey);
 }
 
 async function callOpenRouter(
