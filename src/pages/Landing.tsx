@@ -1,5 +1,6 @@
 import Navbar from '../components/landing/Navbar'
 import Hero from '../components/landing/Hero'
+import Mission from '../components/landing/Mission'
 import WhyInvest from '../components/landing/WhyInvest'
 import Learn from '../components/landing/Learn'
 import HowItWorks from '../components/landing/HowItWorks'
@@ -13,6 +14,7 @@ export default function Landing() {
       <Navbar />
       <main>
         <Hero />
+        <Mission />
         <WhyInvest />
         <Learn />
         <HowItWorks />

@@ -1,41 +1,46 @@
 const steps = [
   {
     number: '01',
-    title: 'Create your account',
-    desc: 'Sign up for free with your email. Your data is secure and private.',
+    title: 'Create a free account',
+    desc: 'Sign up with your email — it takes less than a minute. We don\'t ask for payment, and we never sell your data.',
   },
   {
     number: '02',
-    title: 'Chat with the AI assistant',
-    desc: 'Our AI guide asks about your goals, income, risk comfort, and experience to understand your profile.',
+    title: 'Talk to the AI guide',
+    desc: 'Our AI assistant asks a few simple questions about your goals, income, and comfort with risk. No wrong answers — just honest conversation.',
   },
   {
     number: '03',
-    title: 'Get personalized guidance',
-    desc: 'Receive educational recommendations based on your profile — not licensed financial advice, but a learning roadmap.',
+    title: 'Get a learning path',
+    desc: 'Based on your answers, you\'ll get a suggested roadmap of lessons and topics — not financial advice, but a starting point for your own learning.',
   },
   {
     number: '04',
-    title: 'Track your progress',
-    desc: 'Set investment goals, build a watchlist, and track your learning progress as you grow.',
+    title: 'Grow your knowledge',
+    desc: 'Set goals, explore investment options, and build confidence at your own pace. We\'re here whenever you\'re ready to learn more.',
   },
 ]
 
 export default function HowItWorks() {
   return (
-    <section id="how-it-works" className="section-padding bg-white">
+    <section id="how-it-works" className="section-padding bg-slate-50">
       <div className="container-max">
         <div className="mx-auto max-w-2xl text-center">
-          <h2 className="text-3xl font-bold text-slate-900 sm:text-4xl">How it works</h2>
+          <span className="inline-flex items-center rounded-full bg-primary-50 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-primary-700">
+            How It Works
+          </span>
+          <h2 className="mt-4 text-3xl font-bold text-slate-900 sm:text-4xl">
+            Four simple steps, no pressure
+          </h2>
           <p className="mt-4 text-lg text-slate-600">
-            Four simple steps from curious beginner to confident investor.
+            From "I don't know anything about investing" to "I understand the basics" — at your own pace.
           </p>
         </div>
 
         <div className="mt-16 grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-4">
           {steps.map((step) => (
             <div key={step.number} className="relative">
-              <div className="text-5xl font-extrabold text-primary-100">{step.number}</div>
+              <div className="text-5xl font-extrabold text-secondary-100">{step.number}</div>
               <h3 className="mt-2 text-lg font-semibold text-slate-900">{step.title}</h3>
               <p className="mt-2 text-sm leading-relaxed text-slate-600">{step.desc}</p>
             </div>

@@ -4,8 +4,9 @@ import Logo from '../Logo'
 import { useAuth } from '../../lib/auth/AuthContext'
 
 const navLinks = [
+  { label: 'Our Mission', href: '#mission' },
   { label: 'Why Invest', href: '#why-invest' },
-  { label: 'Learn', href: '#learn' },
+  { label: 'Lessons', href: '#learn' },
   { label: 'How It Works', href: '#how-it-works' },
   { label: 'FAQ', href: '#faq' },
 ]
@@ -64,7 +65,7 @@ export default function Navbar() {
                 Sign in
               </Link>
               <Link to="/signup" className="btn-primary">
-                Get Started
+                Join Free
               </Link>
             </>
           )}
@@ -114,7 +115,7 @@ export default function Navbar() {
                     Sign in
                   </Link>
                   <Link to="/signup" onClick={() => setMobileOpen(false)} className="btn-primary w-full">
-                    Get Started
+                    Join Free
                   </Link>
                 </>
               )}
