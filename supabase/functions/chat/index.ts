@@ -154,13 +154,32 @@ Deno.serve(async (req: Request) => {
 });
 
 const OPENAI_MODEL = "gpt-5.5";
+const GEMINI_MODEL = "gemini-flash-latest";
 
+// Primary: GPT-5.5. Fallback: Gemini, used whenever GPT-5.5 is unset, errors,
+// times out, or gets rate-limited — so a single provider outage doesn't take
+// the chat down.
 async function callAI(messages: Array<{ role: string; content: string }>): Promise<string | null> {
-  const apiKey = Deno.env.get("OPENAI_API_KEY");
-  if (!apiKey) {
-    throw new Error("AI agent is not configured: set OPENAI_API_KEY as a Supabase Edge Function secret.");
+  const openaiKey = Deno.env.get("OPENAI_API_KEY");
+  const geminiKey = Deno.env.get("GEMINI_API_KEY");
+
+  if (!openaiKey && !geminiKey) {
+    throw new Error(
+      "AI agent is not configured: set OPENAI_API_KEY and/or GEMINI_API_KEY as Supabase Edge Function secrets.",
+    );
   }
-  return callGPT(messages, apiKey);
+
+  if (openaiKey) {
+    const result = await callGPT(messages, openaiKey);
+    if (result) return result;
+    console.error(`GPT-5.5 request failed${geminiKey ? ", falling back to Gemini" : ""}.`);
+  }
+
+  if (geminiKey) {
+    return callGemini(messages, geminiKey);
+  }
+
+  return null;
 }
 
 async function callGPT(
@@ -194,6 +213,50 @@ async function callGPT(
     return data.choices?.[0]?.message?.content ?? null;
   } catch (err) {
     console.error("OpenAI request failed:", err);
+    return null;
+  }
+}
+
+async function callGemini(
+  messages: Array<{ role: string; content: string }>,
+  apiKey: string,
+): Promise<string | null> {
+  try {
+    // Gemini takes the system prompt as a separate field, and uses "model"
+    // instead of "assistant" for the assistant's turns.
+    const systemMessage = messages.find((m) => m.role === "system");
+    const contents = messages
+      .filter((m) => m.role !== "system")
+      .map((m) => ({
+        role: m.role === "assistant" ? "model" : "user",
+        parts: [{ text: m.content }],
+      }));
+
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-goog-api-key": apiKey,
+        },
+        body: JSON.stringify({
+          contents,
+          systemInstruction: systemMessage ? { parts: [{ text: systemMessage.content }] } : undefined,
+          generationConfig: { maxOutputTokens: 1500 },
+        }),
+      },
+    );
+
+    if (!res.ok) {
+      console.error("Gemini API error:", res.status, await res.text());
+      return null;
+    }
+
+    const data = await res.json();
+    return data.candidates?.[0]?.content?.parts?.[0]?.text ?? null;
+  } catch (err) {
+    console.error("Gemini request failed:", err);
     return null;
   }
 }
