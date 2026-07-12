@@ -109,15 +109,7 @@ export default function SignUp() {
               </button>
             </form>
             
-            <div className="mt-6 flex items-center gap-3" style="display: none;">
-              <div className="h-px flex-1 bg-slate-200" />
-              <span className="text-xs font-medium text-slate-400">OR</span>
-              <div className="h-px flex-1 bg-slate-200" />
-            </div>
             
-            <div className="mt-4" style="display: none;">
-              <GoogleButton onClick={signInWithGoogle} label="Sign up with Google" />
-            </div>
             
             <p className="mt-6 text-center text-sm text-slate-500">
               Already have an account?{' '}
