@@ -8,6 +8,7 @@ interface AuthContextValue {
   loading: boolean
   signIn: (email: string, password: string) => Promise<{ error: string | null }>
   signUp: (email: string, password: string, fullName: string) => Promise<{ error: string | null }>
+  signInWithGoogle: () => Promise<{ error: string | null }>
   signOut: () => Promise<void>
 }
 
@@ -48,6 +49,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error: null }
   }
 
+  const signInWithGoogle = async () => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}/chat`,
+      },
+    })
+    return { error: error?.message ?? null }
+  }
+
   const signOut = async () => {
     await supabase.auth.signOut()
   }
@@ -60,6 +71,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         loading,
         signIn,
         signUp,
+        signInWithGoogle,
         signOut,
       }}
     >
