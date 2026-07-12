@@ -155,28 +155,38 @@ Deno.serve(async (req: Request) => {
 
 const OPENAI_MODEL = "gpt-5.5";
 const GEMINI_MODEL = "gemini-flash-latest";
+const OPENROUTER_MODEL = "openrouter/free";
 
-// Primary: GPT-5.5. Fallback: Gemini, used whenever GPT-5.5 is unset, errors,
-// times out, or gets rate-limited — so a single provider outage doesn't take
-// the chat down.
+// Three-tier fallback chain: GPT-5.5 -> Gemini -> OpenRouter's free-model
+// auto-router. Each tier is skipped if unconfigured, and tried in order
+// until one returns a response, so a single provider outage (or no key set
+// for it) doesn't take the chat down. OpenRouter's free tier is rate-limited
+// and best-effort, so it's kept as the last resort rather than a primary.
 async function callAI(messages: Array<{ role: string; content: string }>): Promise<string | null> {
   const openaiKey = Deno.env.get("OPENAI_API_KEY");
   const geminiKey = Deno.env.get("GEMINI_API_KEY");
+  const openrouterKey = Deno.env.get("OPENROUTER_API_KEY");
 
-  if (!openaiKey && !geminiKey) {
+  if (!openaiKey && !geminiKey && !openrouterKey) {
     throw new Error(
-      "AI agent is not configured: set OPENAI_API_KEY and/or GEMINI_API_KEY as Supabase Edge Function secrets.",
+      "AI agent is not configured: set OPENAI_API_KEY, GEMINI_API_KEY, and/or OPENROUTER_API_KEY as Supabase Edge Function secrets.",
     );
   }
 
   if (openaiKey) {
     const result = await callGPT(messages, openaiKey);
     if (result) return result;
-    console.error(`GPT-5.5 request failed${geminiKey ? ", falling back to Gemini" : ""}.`);
+    console.error("GPT-5.5 request failed, trying next provider.");
   }
 
   if (geminiKey) {
-    return callGemini(messages, geminiKey);
+    const result = await callGemini(messages, geminiKey);
+    if (result) return result;
+    console.error("Gemini request failed, trying next provider.");
+  }
+
+  if (openrouterKey) {
+    return callOpenRouter(messages, openrouterKey);
   }
 
   return null;
@@ -257,6 +267,40 @@ async function callGemini(
     return data.candidates?.[0]?.content?.parts?.[0]?.text ?? null;
   } catch (err) {
     console.error("Gemini request failed:", err);
+    return null;
+  }
+}
+
+async function callOpenRouter(
+  messages: Array<{ role: string; content: string }>,
+  apiKey: string,
+): Promise<string | null> {
+  try {
+    // OpenRouter's API is OpenAI-compatible, so the same messages array
+    // works as-is. "openrouter/free" auto-selects whichever free model is
+    // currently available, so this keeps working as the free lineup rotates.
+    const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: OPENROUTER_MODEL,
+        messages,
+        max_tokens: 1500,
+      }),
+    });
+
+    if (!res.ok) {
+      console.error("OpenRouter API error:", res.status, await res.text());
+      return null;
+    }
+
+    const data = await res.json();
+    return data.choices?.[0]?.message?.content ?? null;
+  } catch (err) {
+    console.error("OpenRouter request failed:", err);
     return null;
   }
 }
