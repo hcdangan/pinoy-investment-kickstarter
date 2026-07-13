@@ -41,6 +41,19 @@ Ask questions ONE AT A TIME to understand the user's profile:
 - If a user mentions financial distress, encourage them to seek professional help.
 - Never claim to be a licensed financial advisor.`;
 
+interface TokenUsage {
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+}
+
+interface AIResult {
+  content: string;
+  tokens: TokenUsage | null;
+  provider: string;
+  model: string | null;
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 200, headers: corsHeaders });
@@ -110,14 +123,16 @@ Deno.serve(async (req: Request) => {
     ];
 
     // Call the AI provider
-    const aiResponse = await callAI(conversationMessages);
+    const aiResult = await callAI(conversationMessages);
 
-    if (!aiResponse) {
+    if (!aiResult || !aiResult.content) {
       return new Response(JSON.stringify({ error: "AI service unavailable" }), {
         status: 503,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    const { content: aiResponse, tokens, provider, model } = aiResult;
 
     // Save user message and assistant response to database
     if (conversationId) {
@@ -130,15 +145,30 @@ Deno.serve(async (req: Request) => {
           content: lastMessage.content,
         });
       }
-      await supabase.from("messages").insert({
+      const { data: assistantMsg } = await supabase.from("messages").insert({
         conversation_id: conversationId,
         user_id: user.id,
         role: "assistant",
         content: aiResponse,
-      });
+      }).select().single();
+
       await supabase.from("conversations")
         .update({ updated_at: new Date().toISOString() })
         .eq("id", conversationId);
+
+      // Record token usage
+      if (tokens) {
+        await supabase.from("token_usage").insert({
+          user_id: user.id,
+          conversation_id: conversationId,
+          message_id: assistantMsg?.id ?? null,
+          provider,
+          model: model ?? null,
+          prompt_tokens: tokens.promptTokens,
+          completion_tokens: tokens.completionTokens,
+          total_tokens: tokens.totalTokens,
+        });
+      }
     }
 
     return new Response(
@@ -153,7 +183,7 @@ Deno.serve(async (req: Request) => {
   }
 });
 
-async function callAI(messages: Array<{ role: string; content: string }>): Promise<string | null> {
+async function callAI(messages: Array<{ role: string; content: string }>): Promise<AIResult | null> {
   const openaiKey = Deno.env.get("OPENAI_API_KEY");
   const anthropicKey = Deno.env.get("ANTHROPIC_API_KEY");
 
@@ -165,13 +195,14 @@ async function callAI(messages: Array<{ role: string; content: string }>): Promi
   }
 
   // Fallback: rule-based responses when no AI key is configured
-  return generateFallbackResponse(messages);
+  return generateFallbackResult(messages);
 }
 
 async function callOpenAI(
   messages: Array<{ role: string; content: string }>,
   apiKey: string,
-): Promise<string | null> {
+): Promise<AIResult | null> {
+  const model = "gpt-4o-mini";
   try {
     const res = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
@@ -180,24 +211,39 @@ async function callOpenAI(
         "Authorization": `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: "gpt-4o-mini",
+        model,
         messages,
         max_tokens: 800,
         temperature: 0.7,
       }),
     });
-    if (!res.ok) return generateFallbackResponse(messages);
+    if (!res.ok) return generateFallbackResult(messages);
     const data = await res.json();
-    return data.choices?.[0]?.message?.content ?? null;
+    const content = data.choices?.[0]?.message?.content ?? null;
+    if (!content) return generateFallbackResult(messages);
+    const usage = data.usage;
+    return {
+      content,
+      tokens: usage
+        ? {
+            promptTokens: usage.prompt_tokens ?? 0,
+            completionTokens: usage.completion_tokens ?? 0,
+            totalTokens: usage.total_tokens ?? 0,
+          }
+        : null,
+      provider: "openai",
+      model,
+    };
   } catch {
-    return generateFallbackResponse(messages);
+    return generateFallbackResult(messages);
   }
 }
 
 async function callAnthropic(
   messages: Array<{ role: string; content: string }>,
   apiKey: string,
-): Promise<string | null> {
+): Promise<AIResult | null> {
+  const model = "claude-3-5-sonnet-20241022";
   try {
     const systemMsg = messages.find((m) => m.role === "system");
     const chatMessages = messages.filter((m) => m.role !== "system");
@@ -210,7 +256,7 @@ async function callAnthropic(
         "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
-        model: "claude-3-5-sonnet-20241022",
+        model,
         system: systemMsg?.content ?? "",
         messages: chatMessages.map((m) => ({
           role: m.role === "assistant" ? "assistant" : "user",
@@ -219,12 +265,35 @@ async function callAnthropic(
         max_tokens: 800,
       }),
     });
-    if (!res.ok) return generateFallbackResponse(messages);
+    if (!res.ok) return generateFallbackResult(messages);
     const data = await res.json();
-    return data.content?.[0]?.text ?? null;
+    const content = data.content?.[0]?.text ?? null;
+    if (!content) return generateFallbackResult(messages);
+    const usage = data.usage;
+    return {
+      content,
+      tokens: usage
+        ? {
+            promptTokens: usage.input_tokens ?? 0,
+            completionTokens: usage.output_tokens ?? 0,
+            totalTokens: (usage.input_tokens ?? 0) + (usage.output_tokens ?? 0),
+          }
+        : null,
+      provider: "anthropic",
+      model,
+    };
   } catch {
-    return generateFallbackResponse(messages);
+    return generateFallbackResult(messages);
   }
+}
+
+function generateFallbackResult(messages: Array<{ role: string; content: string }>): AIResult {
+  return {
+    content: generateFallbackResponse(messages),
+    tokens: null,
+    provider: "fallback",
+    model: null,
+  };
 }
 
 function generateFallbackResponse(messages: Array<{ role: string; content: string }>): string {
