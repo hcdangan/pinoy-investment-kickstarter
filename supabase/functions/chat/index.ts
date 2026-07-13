@@ -109,7 +109,7 @@ Deno.serve(async (req: Request) => {
       })),
     ];
 
-    // Call the AI provider
+    // Call the AI agent
     const aiResponse = await callAI(conversationMessages);
 
     if (!aiResponse) {
@@ -153,46 +153,50 @@ Deno.serve(async (req: Request) => {
   }
 });
 
+const OPENROUTER_MODEL = "openrouter/free";
+
 async function callAI(messages: Array<{ role: string; content: string }>): Promise<string | null> {
-  const openaiKey = Deno.env.get("OPENAI_API_KEY");
-  const anthropicKey = Deno.env.get("ANTHROPIC_API_KEY");
-
-  if (openaiKey) {
-    return callOpenAI(messages, openaiKey);
+  const apiKey = Deno.env.get("OPENROUTER_API_KEY");
+  if (!apiKey) {
+    throw new Error("AI agent is not configured: set OPENROUTER_API_KEY as a Supabase Edge Function secret.");
   }
-  if (anthropicKey) {
-    return callAnthropic(messages, anthropicKey);
-  }
-
-  // Fallback: rule-based responses when no AI key is configured
-  return generateFallbackResponse(messages);
+  return callOpenRouter(messages, apiKey);
 }
 
-async function callOpenAI(
+async function callOpenRouter(
   messages: Array<{ role: string; content: string }>,
   apiKey: string,
 ): Promise<string | null> {
   try {
-    const res = await fetch("https://api.openai.com/v1/chat/completions", {
+    // OpenRouter's API is OpenAI-compatible, so the same messages array
+    // works as-is. "openrouter/free" auto-selects whichever free model is
+    // currently available, so this keeps working as the free lineup rotates.
+    const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "Authorization": `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: "gpt-4o-mini",
+        model: OPENROUTER_MODEL,
         messages,
-        max_tokens: 800,
-        temperature: 0.7,
+        max_tokens: 1500,
       }),
     });
-    if (!res.ok) return generateFallbackResponse(messages);
+
+    if (!res.ok) {
+      console.error("OpenRouter API error:", res.status, await res.text());
+      return null;
+    }
+
     const data = await res.json();
     return data.choices?.[0]?.message?.content ?? null;
-  } catch {
-    return generateFallbackResponse(messages);
+  } catch (err) {
+    console.error("OpenRouter request failed:", err);
+    return null;
   }
 }
+<<<<<<< HEAD
 
 async function callAnthropic(
   messages: Array<{ role: string; content: string }>,
@@ -287,3 +291,5 @@ This is educational content only, not licensed financial advice. Always research
 
 Would you like me to explain any of these topics in more detail?`;
 }
+=======
+>>>>>>> 1ef2a23fd524fa43fc4cfa856e16d39adaa8cfe5

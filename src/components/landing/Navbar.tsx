@@ -55,6 +55,9 @@ export default function Navbar() {
               <Link to="/chat" className="btn-ghost">
                 Go to Chat
               </Link>
+              <Link to="/statistics" className="btn-ghost">
+                Statistics
+              </Link>
               <button onClick={handleSignOut} className="btn-ghost">
                 Sign out
               </button>

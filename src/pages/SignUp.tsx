@@ -108,17 +108,17 @@ export default function SignUp() {
                 {loading ? <LoadingSpinner size="sm" /> : 'Create account'}
               </button>
             </form>
-
+            
             <div className="mt-6 flex items-center gap-3">
               <div className="h-px flex-1 bg-slate-200" />
               <span className="text-xs font-medium text-slate-400">OR</span>
               <div className="h-px flex-1 bg-slate-200" />
             </div>
-
+            
             <div className="mt-4">
               <GoogleButton onClick={signInWithGoogle} label="Sign up with Google" />
             </div>
-
+            
             <p className="mt-6 text-center text-sm text-slate-500">
               Already have an account?{' '}
               <Link to="/signin" className="font-semibold text-primary-600 hover:text-primary-700">

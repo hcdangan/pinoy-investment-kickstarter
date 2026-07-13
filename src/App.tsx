@@ -2,6 +2,7 @@ import { Routes, Route } from 'react-router-dom'
 import Landing from './pages/Landing'
 import SignIn from './pages/SignIn'
 import SignUp from './pages/SignUp'
+import Statistics from './pages/Statistics'
 import ChatPage from './components/chat/ChatPage'
 import ProtectedRoute from './components/ProtectedRoute'
 
@@ -16,6 +17,14 @@ export default function App() {
         element={
           <ProtectedRoute>
             <ChatPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/statistics"
+        element={
+          <ProtectedRoute>
+            <Statistics />
           </ProtectedRoute>
         }
       />
