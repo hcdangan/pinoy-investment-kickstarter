@@ -221,6 +221,9 @@ export default function ChatPage() {
             <Link to="/" className="mt-1 block rounded-lg px-3 py-2 text-sm text-slate-500 hover:bg-slate-50">
               ← Back to home
             </Link>
+            <Link to="/statistics" className="block rounded-lg px-3 py-2 text-sm text-slate-500 hover:bg-slate-50">
+              Statistics
+            </Link>
           </div>
         </div>
       </aside>
